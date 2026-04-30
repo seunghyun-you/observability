@@ -1,15 +1,9 @@
 # Grafana → MS Teams 알람 중계 서버
 
-Grafana Webhook을 수신하여 **MS Teams**, **Slack** 으로 전달하는 Python 중계 서버입니다.
+Grafana Webhook을 수신하여 **MS Teams**, **Slack** 으로 전달하는 Python 중계 서버
+<br>
 
----
-
-## 아키텍처
-
-```
-Grafana ──POST /webhook──▶ FastAPI 중계 서버 ──▶ MS Teams
-                                               └──▶ Slack
-```
+## Folder Structure
 
 ```
 src/
@@ -25,34 +19,32 @@ src/
     ├── notifier.py           # 전송 (MSTeamsNotifier / SlackNotifier)
     └── dedup.py              # 중복 알람 제거 (TTL 기반)
 ```
+<br>
 
----
 
 ## 주요 기능
 
-| 기능 | 설명 |
-|------|------|
-| **플랫폼 추상화** | `NOTIFIER_TYPE` 환경 변수 하나로 MS Teams / Slack 전환 |
-| **AdaptiveCard 변환** | Grafana alert payload → 플랫폼별 포맷으로 자동 변환 |
-| **다단계 임계값 처리** | alertname 끝 숫자(70/80/90) 기반으로 에스컬레이션/디에스컬레이션 구분 |
-| **중복 제거** | 동일 alert의 중복 전송을 TTL 캐시로 방지 (기본 1시간) |
-| **병렬 처리** | 다수의 alert를 `asyncio.gather`로 병렬 전송 |
-| **Datasource 알람** | Grafana datasource 장애 알람을 별도 처리 (datasource 편집 페이지 연결) |
-
----
+| 기능                   | 설명                                                                   |
+| ---------------------- | ---------------------------------------------------------------------- |
+| **플랫폼 추상화**      | `NOTIFIER_TYPE` 환경 변수 하나로 MS Teams / Slack 전환                 |
+| **AdaptiveCard 변환**  | Grafana alert payload → 플랫폼별 포맷으로 자동 변환                    |
+| **다단계 임계값 처리** | alertname 끝 숫자(70/80/90) 기반으로 에스컬레이션/디에스컬레이션 구분  |
+| **중복 제거**          | 동일 alert의 중복 전송을 TTL 캐시로 방지 (기본 1시간)                  |
+| **병렬 처리**          | 다수의 alert를 `asyncio.gather`로 병렬 전송                            |
+| **Datasource 알람**    | Grafana datasource 장애 알람을 별도 처리 (datasource 편집 페이지 연결) |
+<br>
 
 ## 환경 변수
 
-| 변수명 | 필수 | 기본값 | 설명 |
-|--------|------|--------|------|
-| `NOTIFIER_TYPE` | | `msteams` | 전송 대상 플랫폼 (`msteams` \| `slack`) |
-| `MS_TEAMS_WEBHOOK_URL` | `msteams` 사용 시 | - | MS Teams Incoming Webhook URL |
-| `SLACK_WEBHOOK_URL` | `slack` 사용 시 | - | Slack Incoming Webhook URL |
-| `APP_PORT` | | `8000` | 서버 포트 |
+| 변수명                 | 필수              | 기본값    | 설명                                    |
+| ---------------------- | ----------------- | --------- | --------------------------------------- |
+| `NOTIFIER_TYPE`        |                   | `msteams` | 전송 대상 플랫폼 (`msteams` \| `slack`) |
+| `MS_TEAMS_WEBHOOK_URL` | `msteams` 사용 시 | -         | MS Teams Incoming Webhook URL           |
+| `SLACK_WEBHOOK_URL`    | `slack` 사용 시   | -         | Slack Incoming Webhook URL              |
+| `APP_PORT`             |                   | `8000`    | 서버 포트                               |
 
 > `NOTIFIER_TYPE`에 맞는 URL이 없으면 서버 시작 시 즉시 오류가 발생합니다.
-
----
+<br>
 
 ## 배포
 
@@ -113,12 +105,12 @@ Grafana 알람 Webhook 수신 엔드포인트.
 { "status": "ok", "forwarded": 1, "errors": [] }
 ```
 
-| status | 설명 |
-|--------|------|
-| `ok` | 전체 성공 |
-| `skipped` | alerts 배열이 비어 있음 |
-| `partial_error` | 일부 성공, 일부 실패 |
-| `error` | 전체 실패 |
+| status          | 설명                    |
+| --------------- | ----------------------- |
+| `ok`            | 전체 성공               |
+| `skipped`       | alerts 배열이 비어 있음 |
+| `partial_error` | 일부 성공, 일부 실패    |
+| `error`         | 전체 실패               |
 
 ### `GET /health`
 ```json
@@ -129,12 +121,12 @@ Grafana 알람 Webhook 수신 엔드포인트.
 
 ## 기술 스택
 
-| 항목 | 내용 |
-|------|------|
-| 언어 | Python 3.11 |
-| 웹 프레임워크 | FastAPI + Uvicorn |
-| HTTP 클라이언트 | httpx (비동기) |
-| 설정 관리 | Pydantic Settings |
-| 컨테이너 | Docker (multi-stage build) |
-| 배포 | Kubernetes + Helm |
-| 이미지 레지스트리 | Nexus (사설) |
+| 항목              | 내용                       |
+| ----------------- | -------------------------- |
+| 언어              | Python 3.11                |
+| 웹 프레임워크     | FastAPI + Uvicorn          |
+| HTTP 클라이언트   | httpx (비동기)             |
+| 설정 관리         | Pydantic Settings          |
+| 컨테이너          | Docker (multi-stage build) |
+| 배포              | Kubernetes + Helm          |
+| 이미지 레지스트리 | Nexus (사설)               |
