@@ -94,8 +94,7 @@ env:
 secret:
   msTeamsWebhookUrl: "https://xxxxx.webhook.office.com/webhookb2/<WEBHOOK_ID>"
 ```
-
----
+<br>
 
 ## API
 
