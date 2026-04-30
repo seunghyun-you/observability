@@ -1,0 +1,6 @@
+apiVersion: v2
+name: ms-teams-alarm
+description: Grafana 알람을 MS Teams로 전달하는 중계 서버
+type: application
+version: 1.0.0
+appVersion: "v26.03.17"

@@ -1,0 +1,17 @@
+{{- if or .Values.grafana.enabled .Values.grafana.forceDeployDashboards }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: {{ template "kube-prometheus-stack-grafana.namespace" . }}
+  name: {{ printf "%s-%s" (include "kube-prometheus-stack.fullname" $) "custom-cpu-memory" | trunc 63 | trimSuffix "-" }}
+  annotations:
+    grafana-folder: "K8s Monitoring"
+  labels:
+    {{- if $.Values.grafana.sidecar.dashboards.label }}
+    {{ $.Values.grafana.sidecar.dashboards.label }}: {{ ($.Values.grafana.sidecar.dashboards.labelValue | default "1") | quote }}
+    {{- end }}
+{{ include "kube-prometheus-stack.labels" $ | indent 4 }}
+data:
+  cluster-core-resource-status.json: |-
+{{ .Files.Get "custom-dashboards/cluster-core-resource-status.json" | indent 4 }}
+{{- end }}

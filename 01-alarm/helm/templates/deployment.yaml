@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ms-teams-alarm
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: ms-teams-alarm
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: ms-teams-alarm
+  template:
+    metadata:
+      labels:
+        app: ms-teams-alarm
+    spec:
+      {{- if .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml .Values.nodeSelector | nindent 8 }}
+      {{- end }}
+      imagePullSecrets:
+        {{- toYaml .Values.imagePullSecrets | nindent 8 }}
+      containers:
+        - name: ms-teams-alarm
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.env.appPort }}
+          env:
+            - name: NOTIFIER_TYPE
+              value: "{{ .Values.env.notifierType }}"
+            - name: MS_TEAMS_WEBHOOK_URL
+              valueFrom:
+                secretKeyRef:
+                  name: ms-teams-alarm-secret
+                  key: ms_teams_webhook_url
+            - name: APP_PORT
+              value: "{{ .Values.env.appPort }}"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.env.appPort }}
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}

@@ -1,0 +1,91 @@
+# ──────────────────────────────────────────
+# 2nd 클러스터 — Prometheus + Exporters only
+# Grafana는 1st 클러스터에서 prometheus.container-wave.internal 로 접근
+# ──────────────────────────────────────────
+
+alertmanager:
+  enabled: false
+
+grafana:
+  enabled: false
+
+# ──────────────────────────────────────────
+# Prometheus
+# ──────────────────────────────────────────
+prometheus:
+  ingress:
+    enabled: true
+    ingressClassName: "nginx"
+    annotations:
+      kubernetes.io/ingress.class: nginx
+    hosts:
+      - "prometheus.container-wave.internal"  # 1st 클러스터 Grafana hostAliases와 일치
+
+  prometheusSpec:
+    externalLabels:
+      cluster: "2nd-cluster"
+    retention: 30d
+    retentionSize: "15GiB"
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: "<CEPH_STORAGECLASS>"
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 20Gi
+    resources:
+      requests:
+        cpu: 200m
+        memory: 512Mi
+      limits:
+        cpu: 400m
+        memory: 1Gi
+
+# ──────────────────────────────────────────
+# Prometheus Operator
+# ──────────────────────────────────────────
+prometheusOperator:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 100Mi
+    limits:
+      cpu: 200m
+      memory: 200Mi
+  prometheusConfigReloader:
+    resources:
+      requests:
+        cpu: 200m
+        memory: 50Mi
+      limits:
+        cpu: 400m
+        memory: 100Mi
+
+# ──────────────────────────────────────────
+# Exporters
+# ──────────────────────────────────────────
+prometheus-node-exporter:
+  prometheus:
+    monitor:
+      relabelings:
+        - sourceLabels: [__meta_kubernetes_pod_node_name]
+          regex: (.+)
+          targetLabel: instance
+          action: replace
+  resources:
+    requests:
+      cpu: "20m"
+      memory: "64Mi"
+    limits:
+      cpu: "40m"
+      memory: "128Mi"
+
+kube-state-metrics:
+  resources:
+    requests:
+      cpu: "40m"
+      memory: "100Mi"
+    limits:
+      cpu: "90m"
+      memory: "200Mi"

@@ -1,0 +1,217 @@
+# ──────────────────────────────────────────
+# 1st 클러스터 — Prometheus + Grafana full stack
+# ──────────────────────────────────────────
+
+alertmanager:
+  enabled: false
+
+# ──────────────────────────────────────────
+# Grafana
+# ──────────────────────────────────────────
+grafana:
+  enabled: true
+  defaultDashboardsEnabled: true
+  defaultDashboardsTimezone: "Asia/Seoul"
+  adminUser: "admin"
+  adminPassword: "<GRAFANA_ADMIN_PASSWORD>"
+
+  grafana.ini:
+    server:
+      domain: mgmt.container-wave.com
+      root_url: "http://%(domain)s/"
+    users:
+      allow_password_change: false
+
+  # 2nd 클러스터 Prometheus는 내부 전용 도메인으로 접근 (공개 DNS 불필요)
+  hostAliases:
+    - ip: "<2ND_CLUSTER_NODE_IP>"  # 2nd 클러스터 노드 IP (192.168.50.x)
+      hostnames:
+        - "prometheus.container-wave.internal"
+
+  ingress:
+    enabled: true
+    ingressClassName: "nginx"
+    annotations:
+      kubernetes.io/ingress.class: nginx
+    hosts:
+      - "mgmt.container-wave.com"
+
+  resources:
+    requests:
+      cpu: "150m"
+      memory: "700Mi"
+    limits:
+      cpu: "300m"
+      memory: "1400Mi"
+
+  persistence:
+    enabled: true
+    type: pvc
+    storageClassName: "<CEPH_STORAGECLASS>"
+    accessModes:
+      - ReadWriteOnce
+    size: 10Gi
+    finalizers:
+      - kubernetes.io/pvc-protection
+
+  sidecar:
+    dashboards:
+      enabled: true
+      folderAnnotation: "grafana-folder"
+      provider:
+        foldersFromFilesStructure: true
+    alerts:
+      enabled: true
+      searchNamespace: ALL
+      label: grafana_alert
+      labelValue: "1"
+    datasources:
+      name: prometheus-1st
+      uid: Prometheus
+      alertmanager:
+        enabled: false  # Grafana Managed Rules 사용, Alertmanager 미사용
+    resources:
+      requests:
+        cpu: "20m"
+        memory: "256Mi"
+      limits:
+        cpu: "40m"
+        memory: "512Mi"
+
+  # MS Teams 알람 연동 (Grafana Managed Rules)
+  alerting:
+    contactpoints.yaml:
+      secret:
+        apiVersion: 1
+        contactPoints:
+          - orgId: 1
+            name: ms-teams-alarm
+            receivers:
+              - uid: ms_teams_webhook
+                type: webhook
+                settings:
+                  url: http://ms-teams-alarm.infra-manager.svc.cluster.local/webhook
+    policies.yaml:
+      apiVersion: 1
+      policies:
+        - orgId: 1
+          receiver: ms-teams-alarm
+          group_by: ["alertname", "severity", "cluster", "namespace"]
+          group_wait: 1m
+          group_interval: 10m
+          repeat_interval: 4h
+          routes:
+            - receiver: ms-teams-alarm
+              matchers:
+                - "severity=CRITICAL"
+              repeat_interval: 1h
+            - receiver: ms-teams-alarm
+              matchers:
+                - "severity=WARNING"
+              repeat_interval: 4h
+            - receiver: ms-teams-alarm
+              matchers:
+                - "severity=INFO"
+              repeat_interval: 24h
+
+  # 2nd 클러스터 Prometheus (hostAliases로 내부 도메인 해석)
+  additionalDataSources:
+    - name: prometheus-2nd
+      uid: prometheus-2nd
+      type: prometheus
+      access: proxy
+      url: http://prometheus.container-wave.internal
+      editable: false
+      jsonData:
+        tlsSkipVerify: true
+
+# ──────────────────────────────────────────
+# Prometheus
+# ──────────────────────────────────────────
+prometheus:
+  ingress:
+    enabled: false  # Grafana와 동일 클러스터 — 외부 노출 불필요
+
+  prometheusSpec:
+    externalLabels:
+      cluster: "1st-cluster"
+    retention: 30d
+    retentionSize: "15GiB"
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: "<CEPH_STORAGECLASS>"
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 20Gi
+    resources:
+      requests:
+        cpu: 200m
+        memory: 512Mi
+      limits:
+        cpu: 400m
+        memory: 1Gi
+
+# ──────────────────────────────────────────
+# Prometheus Operator
+# ──────────────────────────────────────────
+prometheusOperator:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 100Mi
+    limits:
+      cpu: 200m
+      memory: 200Mi
+  prometheusConfigReloader:
+    resources:
+      requests:
+        cpu: 200m
+        memory: 50Mi
+      limits:
+        cpu: 400m
+        memory: 100Mi
+
+# ──────────────────────────────────────────
+# Exporters
+# ──────────────────────────────────────────
+prometheus-node-exporter:
+  prometheus:
+    monitor:
+      relabelings:
+        - sourceLabels: [__meta_kubernetes_pod_node_name]
+          regex: (.+)
+          targetLabel: instance
+          action: replace
+  resources:
+    requests:
+      cpu: "20m"
+      memory: "64Mi"
+    limits:
+      cpu: "40m"
+      memory: "128Mi"
+
+kube-state-metrics:
+  resources:
+    requests:
+      cpu: "40m"
+      memory: "100Mi"
+    limits:
+      cpu: "90m"
+      memory: "200Mi"
+
+# ──────────────────────────────────────────
+# Grafana Alert Rule 대상 데이터소스
+# 1st/2nd 양쪽 클러스터에 대한 알람 룰 생성
+# ──────────────────────────────────────────
+customAlerts:
+  datasources:
+    - uid: Prometheus
+      label: "[1ST-CLUSTER]"
+      uidPrefix: "1st"
+      cluster: "1st-cluster"
+    - uid: prometheus-2nd
+      label: "[2ND-CLUSTER]"
+      uidPrefix: "2nd"
+      cluster: "2nd-cluster"

@@ -1,0 +1,19 @@
+{{- if or .Values.grafana.enabled .Values.grafana.forceDeployDashboards }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: {{ template "kube-prometheus-stack-grafana.namespace" . }}
+  name: {{ printf "%s-%s" (include "kube-prometheus-stack.fullname" $) "custom-alert-rules" | trunc 63 | trimSuffix "-" }}
+  labels:
+    {{- if $.Values.grafana.sidecar.alerts.label }}
+    {{ $.Values.grafana.sidecar.alerts.label }}: {{ ($.Values.grafana.sidecar.alerts.labelValue | default "1") | quote }}
+    {{- end }}
+{{ include "kube-prometheus-stack.labels" $ | indent 4 }}
+data:
+  alert-rules.yaml: |
+    apiVersion: 1
+    groups:
+{{- range .Values.customAlerts.datasources }}
+{{- include "custom-alerts.groups" (dict "dsUid" .uid "label" .label "uidPrefix" .uidPrefix "cluster" .cluster) | nindent 6 }}
+{{- end }}
+{{- end }}
