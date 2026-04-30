@@ -3,6 +3,7 @@
 Grafana Webhook을 수신하여 **MS Teams**, **Slack** 으로 전달하는 Python 중계 서버
 <br>
 
+
 ## Folder Structure
 
 ```
@@ -36,6 +37,8 @@ src/
 
 ## 환경 변수
 
+> `NOTIFIER_TYPE`에 맞는 URL이 없으면 서버 시작 시 즉시 오류가 발생합니다.
+
 | 변수명                 | 필수              | 기본값    | 설명                                    |
 | ---------------------- | ----------------- | --------- | --------------------------------------- |
 | `NOTIFIER_TYPE`        |                   | `msteams` | 전송 대상 플랫폼 (`msteams` \| `slack`) |
@@ -43,7 +46,6 @@ src/
 | `SLACK_WEBHOOK_URL`    | `slack` 사용 시   | -         | Slack Incoming Webhook URL              |
 | `APP_PORT`             |                   | `8000`    | 서버 포트                               |
 
-> `NOTIFIER_TYPE`에 맞는 URL이 없으면 서버 시작 시 즉시 오류가 발생합니다.
 <br>
 
 ## 배포
@@ -116,8 +118,7 @@ Grafana 알람 Webhook 수신 엔드포인트.
 ```json
 { "status": "healthy" }
 ```
-
----
+<br>
 
 ## 기술 스택
 
